@@ -1,0 +1,13 @@
+{
+  "itemGroup.dragonuniverse": "Example Mod Tab",
+  "block.dragonuniverse.example_block": "Example Block",
+  "item.dragonuniverse.example_item": "Example Item",
+
+  "dragonuniverse.configuration.title": "Dragon Universe Configs",
+  "dragonuniverse.configuration.section.dragonuniverse.common.toml": "Dragon Universe Configs",
+  "dragonuniverse.configuration.section.dragonuniverse.common.toml.title": "Dragon Universe Configs",
+  "dragonuniverse.configuration.items": "Item List",
+  "dragonuniverse.configuration.logDirtBlock": "Log Dirt Block",
+  "dragonuniverse.configuration.magicNumberIntroduction": "Magic Number Text",
+  "dragonuniverse.configuration.magicNumber": "Magic Number"
+}
