@@ -1,0 +1,11 @@
+{
+  "cha_la_head_cha_la": {
+    "sounds": [
+      {
+        "name": "dragonuniverse:cha_la_head_cha_la",
+        "stream": true
+      }
+    ],
+    "subtitle": "sounds.dragonuniverse.cha_la_head_cha_la"
+  }
+}

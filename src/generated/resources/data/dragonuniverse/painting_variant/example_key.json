@@ -1,0 +1,13 @@
+{
+  "asset_id": "dragonuniverse:example_key",
+  "author": {
+    "color": "gray",
+    "translate": "painting.dragonuniverse.example_key.author"
+  },
+  "height": 2,
+  "title": {
+    "color": "yellow",
+    "translate": "painting.dragonuniverse.example_key.title"
+  },
+  "width": 2
+}

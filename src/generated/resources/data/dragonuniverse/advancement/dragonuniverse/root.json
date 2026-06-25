@@ -1,0 +1,34 @@
+{
+  "criteria": {
+    "has_example_item": {
+      "conditions": {
+        "items": [
+          {
+            "items": "dragonuniverse:example_item"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "background": "minecraft:gui/advancements/backgrounds/adventure",
+    "description": {
+      "translate": "advancements.dragonuniverse.root.description"
+    },
+    "icon": {
+      "id": "dragonuniverse:example_item"
+    },
+    "show_toast": false,
+    "title": {
+      "translate": "advancements.dragonuniverse.root.title"
+    }
+  },
+  "requirements": [
+    [
+      "has_example_item"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

@@ -1,0 +1,10 @@
+{
+  "values": {
+    "dragonuniverse:example_log": {
+      "stripped_block": "dragonuniverse:stripped_example_log"
+    },
+    "dragonuniverse:example_wood": {
+      "stripped_block": "dragonuniverse:stripped_example_wood"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "layers": {
+    "humanoid": [
+      {
+        "texture": "dragonuniverse:example"
+      }
+    ],
+    "humanoid_baby": [
+      {
+        "texture": "dragonuniverse:example"
+      }
+    ],
+    "humanoid_leggings": [
+      {
+        "texture": "dragonuniverse:example"
+      }
+    ]
+  }
+}

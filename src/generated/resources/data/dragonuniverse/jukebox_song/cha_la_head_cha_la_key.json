@@ -1,0 +1,8 @@
+{
+  "comparator_output": 15,
+  "description": {
+    "translate": "jukebox_song.dragonuniverse.cha_la_head_cha_la_key"
+  },
+  "length_in_seconds": 107.0,
+  "sound_event": "dragonuniverse:cha_la_head_cha_la"
+}

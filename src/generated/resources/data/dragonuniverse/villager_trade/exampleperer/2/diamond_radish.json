@@ -1,0 +1,13 @@
+{
+  "gives": {
+    "count": 5,
+    "id": "dragonuniverse:radish"
+  },
+  "max_uses": 12.0,
+  "reputation_discount": 0.05,
+  "wants": {
+    "count": 4.0,
+    "id": "minecraft:diamond"
+  },
+  "xp": 12.0
+}

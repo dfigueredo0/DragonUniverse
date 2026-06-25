@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "dragonuniverse:block/example_log_top",
+    "side": "dragonuniverse:block/example_log"
+  }
+}

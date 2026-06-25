@@ -1,0 +1,9 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:plains",
+    "minecraft:stony_shore"
+  ],
+  "features": "dragonuniverse:example_tree_placed",
+  "step": "vegetal_decoration"
+}

@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "building",
+  "group": "planks",
+  "ingredients": [
+    "#dragonuniverse:example_logs"
+  ],
+  "result": {
+    "count": 4,
+    "id": "dragonuniverse:example_planks"
+  }
+}
