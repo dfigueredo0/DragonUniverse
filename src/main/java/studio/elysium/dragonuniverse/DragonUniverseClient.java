@@ -22,6 +22,7 @@ import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import studio.elysium.dragonuniverse.AttachmentType.DUAttachmentTypes;
 import studio.elysium.dragonuniverse.client.KeyMapping.DUKeyMappings;
+import studio.elysium.dragonuniverse.client.particle.DUVFXParticle;
 import studio.elysium.dragonuniverse.client.particle.ZirconParticle;
 import studio.elysium.dragonuniverse.client.render.debug.DUImGui;
 import studio.elysium.dragonuniverse.client.render.debug.DUImGuiScreen;
@@ -135,6 +136,7 @@ public class DragonUniverseClient {
     @SubscribeEvent
     public static void registerParticleFactories(RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(DUParticles.ZIRCON_PARTICLES.get(), ZirconParticle.Provider::new);
+        event.registerSpriteSet(DUParticles.DU_VFX.get(), DUVFXParticle.Provider::new);
     }
 
     @SubscribeEvent

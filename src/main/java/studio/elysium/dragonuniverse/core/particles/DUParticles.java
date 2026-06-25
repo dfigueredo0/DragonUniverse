@@ -16,6 +16,14 @@ public class DUParticles {
     public static final Supplier<SimpleParticleType> ZIRCON_PARTICLES =
         PARTICLE_TYPES.register("zircon_particles", () -> new SimpleParticleType(true));
 
+    /**
+     * Generic VFX particle type. Its only real job is to give the client a {@code SpriteSet} from
+     * the particle atlas (captured by the provider). Actual spawning is done client-side and
+     * fully configured via {@code DUVFXBuilder}, not through this type's network path.
+     */
+    public static final Supplier<SimpleParticleType> DU_VFX =
+        PARTICLE_TYPES.register("du_vfx", () -> new SimpleParticleType(false));
+
     public static void register(IEventBus eventBus) {
         PARTICLE_TYPES.register(eventBus);
     }
