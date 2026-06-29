@@ -9,5 +9,9 @@
   "dragonuniverse.configuration.items": "Item List",
   "dragonuniverse.configuration.logDirtBlock": "Log Dirt Block",
   "dragonuniverse.configuration.magicNumberIntroduction": "Magic Number Text",
-  "dragonuniverse.configuration.magicNumber": "Magic Number"
+  "dragonuniverse.configuration.magicNumber": "Magic Number",
+
+  "key.dragonuniverse.zoom_key": "Zoom",
+  "key.dragonuniverse.debug_imgui_key": "Toggle Debug Overlay",
+  "key.dragonuniverse.debug_imgui_cursor_key": "Debug Overlay: Toggle Cursor / Camera"
 }

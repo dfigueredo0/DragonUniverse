@@ -1,7 +1,5 @@
 package studio.elysium.dragonuniverse;
 
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.block.FluidModel;
@@ -25,7 +23,7 @@ import studio.elysium.dragonuniverse.client.KeyMapping.DUKeyMappings;
 import studio.elysium.dragonuniverse.client.particle.DUVFXParticle;
 import studio.elysium.dragonuniverse.client.particle.ZirconParticle;
 import studio.elysium.dragonuniverse.client.render.debug.DUImGui;
-import studio.elysium.dragonuniverse.client.render.debug.DUImGuiScreen;
+import studio.elysium.dragonuniverse.client.render.sky.planet.DUPlanetApproach;
 import studio.elysium.dragonuniverse.client.renderer.entity.ChairRenderer;
 import studio.elysium.dragonuniverse.core.particles.DUParticles;
 import studio.elysium.dragonuniverse.network.packet.TestPacketC2S;
@@ -88,10 +86,14 @@ public class DragonUniverseClient {
 
         event.register(DUKeyMappings.PRESS_ZOOM_KEY.get());
         event.register(DUKeyMappings.TOGGLE_DEBUG_IMGUI_KEY.get());
+        event.register(DUKeyMappings.TOGGLE_DEBUG_IMGUI_CURSOR_KEY.get());
     }
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
+        // TODO: Dimension check should only tick while in Space DIM.
+        DUPlanetApproach.tick();
+
         while (DUKeyMappings.PRESS_ZOOM_KEY.get().consumeClick()) {
             Minecraft.getInstance().player.sendSystemMessage(Component.literal("Pressing Zoom Key!"));
             ClientPacketDistributor.sendToServer(new TestPacketC2S("Daedalus", 6));
@@ -99,13 +101,24 @@ public class DragonUniverseClient {
 
         if (DUKeyMappings.TOGGLE_DEBUG_IMGUI_KEY.get().consumeClick()) {
             Minecraft mc = Minecraft.getInstance();
-            DUImGui.toggle();
-            // Open a transparent, non-pausing screen while enabled so the cursor is freed and the
-            // overlay is clickable; closing it (ESC or the toggle key) syncs DUImGui back off.
-            if (DUImGui.enabled()) {
-                mc.setScreen(new DUImGuiScreen());
-            } else if (mc.screen instanceof DUImGuiScreen) {
-                mc.setScreen(null);
+            if (mc.screen == null) {
+                DUImGui.toggle();
+                if (DUImGui.enabled()) {
+                    mc.mouseHandler.releaseMouse();
+                } else {
+                    mc.mouseHandler.grabMouse();
+                }
+            }
+        }
+
+        if (DUImGui.enabled() && DUKeyMappings.TOGGLE_DEBUG_IMGUI_CURSOR_KEY.get().consumeClick()) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.screen == null) {
+                if (mc.mouseHandler.isMouseGrabbed()) {
+                    mc.mouseHandler.releaseMouse();
+                } else {
+                    mc.mouseHandler.grabMouse();
+                }
             }
         }
     }

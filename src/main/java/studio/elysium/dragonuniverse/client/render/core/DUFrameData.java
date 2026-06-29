@@ -4,6 +4,7 @@ import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.attribute.EnvironmentAttributes;
 import org.joml.Vector3f;
 import org.lwjgl.system.MemoryUtil;
 
@@ -65,22 +66,23 @@ public final class DUFrameData {
         float time = (mc.level == null ? 0 : mc.level.getGameTime()) + partialTick;
 
         if (!lockSunDir && mc.level != null) {
-            // TODO: Replace with Space-sim sun vector
-            float angle = sunAngleRadians(partialTick);
-            sunDir.set((float) Math.cos(angle), (float) Math.sin(angle), 0.0F).normalize();
+            // Match Minecraft's actually-rendered sun. SkyRenderer applies YP(-90deg) * XP(sunAngle) to
+            // the celestial quad (which sits at +Y), yielding world direction (-sin, cos, 0). sunAngle is
+            // pulled from the SAME environment attribute the sky renderer reads (it's in degrees there),
+            // so the god-ray sun coincides exactly with the visible sun.
+            float sunAngle = mc.gameRenderer.getMainCamera().attributeProbe()
+                    .getValue(EnvironmentAttributes.SUN_ANGLE, partialTick) * (float) (Math.PI / 180.0);
+            sunDir.set(-(float) Math.sin(sunAngle), (float) Math.cos(sunAngle), 0.0F).normalize();
         }
 
-        // CPU-side pulse driven by time + bloomIntensity (used by the trail VFX path today).
         currentPulse = 1.0F + bloomIntensity * 0.25F * (float) Math.sin(time * 0.15F);
 
-        // The std140 UBO is only consumed by the Phase-3 post pipelines; until those exist it
-        // binds to nothing, so skip the GPU upload to avoid paying the cost every frame.
         if (!postProcessingEnabled) {
             return;
         }
 
         // Depth-fog needs the real projection planes to linearize the depth buffer. Replicate
-        // Camera.depthFar exactly so our reconstruction matches what wrote the depth buffer.
+        // Camera.depthFar exactly so reconstruction matches what wrote the depth buffer.
         float near = NEAR_PLANE;
         float far = 1.0F;
         if (mc.level != null) {

@@ -3,6 +3,12 @@
   "package": "studio.elysium.dragonuniverse.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [],
+  "client": [
+    "GlCommandEncoderMixin",
+    "GlDeviceShaderInjectMixin",
+    "GlCommandEncoderNormalScopeMixin",
+    "GlRenderPassNormalScopeMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   },

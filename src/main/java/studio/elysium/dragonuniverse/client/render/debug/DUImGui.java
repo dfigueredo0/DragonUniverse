@@ -8,9 +8,7 @@ public final class DUImGui {
     private static boolean ENABLED = false;
     private static boolean INITIALIZED = false;
 
-    private DUImGui() {
-
-    }
+    private DUImGui() { }
 
     public static boolean available() {
         DragonUniverse.LOGGER.info(ModList.get().isLoaded("imguimc") ? ": ImGuiMC available" : ": ImGuiMC not available");
@@ -39,5 +37,6 @@ public final class DUImGui {
         if (!ENABLED)
             return;
         DUDebugWindows.render();
+        DUPlanetEditor.render();
     }
 }

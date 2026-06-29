@@ -47,6 +47,11 @@ Example mod description.
 [[mixins]]
 config="${mod_id}.mixins.json"
 
+# Sodium-targeting mixins, in a separate non-required config so they silently no-op when Sodium is
+# absent (the geometry-normals G-buffer simply doesn't run; the rest of the look stack is unaffected).
+[[mixins]]
+config="${mod_id}-sodium.mixins.json"
+
 # The [[accessTransformers]] block allows you to declare where your AT file is.
 # If this block is omitted, a fallback attempt will be made to load an AT from META-INF/accesstransformer.cfg
 #[[accessTransformers]]

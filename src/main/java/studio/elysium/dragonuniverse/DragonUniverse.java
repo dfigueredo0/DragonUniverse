@@ -32,6 +32,7 @@ import studio.elysium.dragonuniverse.world.item.DUCreativeModeTabs;
 import studio.elysium.dragonuniverse.world.item.DUItems;
 import studio.elysium.dragonuniverse.world.item.consume_effects.DUConsumeEffects;
 import studio.elysium.dragonuniverse.world.level.levelgen.feature.trunkplacers.DUTrunkPlacerTypes;
+import studio.elysium.dragonuniverse.world.planet.PlanetRegistry;
 
 // The value here should match an entry in the META-INF/neoforge.mods.toml file
 @Mod(DragonUniverse.MODID)
@@ -88,6 +89,11 @@ public class DragonUniverse {
             ((FlowerPotBlock) Blocks.FLOWER_POT).addPlant(DUBlocks.EXAMPLE_SAPLING.getId(), DUBlocks.POTTED_EXAMPLE_SAPLING);
 
             DUBiomes.registerBiomes();
+
+            // Load persisted planet definitions (config/dragonuniverse/planets/*.json). Shared data
+            // model: the orbital renderer + editor read it now; a later phase exports the same files
+            // into dimension defs.
+            PlanetRegistry.loadAll();
         });
     }
 

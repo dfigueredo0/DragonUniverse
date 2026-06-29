@@ -1,0 +1,12 @@
+{
+  "required": false,
+  "package": "studio.elysium.dragonuniverse.mixin.sodium",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "SodiumShaderLoaderMixin",
+    "SodiumShaderChunkRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

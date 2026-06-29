@@ -58,7 +58,7 @@ public final class DUBeams {
             BeamConfig c = beam.config();
             float fade = 1.0f - Mth.clamp(beam.age(now, partialTick) / c.lifetime, 0.0f, 1.0f);
             List<Vector3f> pts = beam.path().points(beam.from(), beam.to(), time, c.segments);
-            TrailVFXBuilder.ribbon(pose, consumer, pts, c.baseWidth,
+            TrailVFXBuilder.tube(pose, consumer, pts, c.baseWidth, 8,
                     c.r, c.g, c.b, c.headAlpha * fade, c.tailAlpha * fade);
         }
 

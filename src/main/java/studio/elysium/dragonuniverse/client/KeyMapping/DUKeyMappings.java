@@ -12,9 +12,13 @@ public class DUKeyMappings {
 
     private static final KeyMapping ZOOM_KEYMAPPING = new KeyMapping("key.dragonuniverse.zoom_key", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_C, DRAGON_UNIVERSE_CATEGORY);
     private static final KeyMapping DEBUG_IMGUI_KEYMAPPING = new KeyMapping("key.dragonuniverse.debug_imgui_key", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_GRAVE_ACCENT, DRAGON_UNIVERSE_CATEGORY);
+    // While the debug overlay is open, flips the cursor between grabbed (rotate camera) and released
+    // (edit ImGui) without closing the overlay. Default: Left Alt.
+    private static final KeyMapping DEBUG_IMGUI_CURSOR_KEYMAPPING = new KeyMapping("key.dragonuniverse.debug_imgui_cursor_key", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_LEFT_ALT, DRAGON_UNIVERSE_CATEGORY);
 
     public static final Lazy<KeyMapping> PRESS_ZOOM_KEY = Lazy.of(() -> ZOOM_KEYMAPPING);
     public static final Lazy<KeyMapping> TOGGLE_DEBUG_IMGUI_KEY = Lazy.of(() -> DEBUG_IMGUI_KEYMAPPING);
+    public static final Lazy<KeyMapping> TOGGLE_DEBUG_IMGUI_CURSOR_KEY = Lazy.of(() -> DEBUG_IMGUI_CURSOR_KEYMAPPING);
 
     public static void register() {
     }

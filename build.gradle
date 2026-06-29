@@ -38,8 +38,23 @@ repositories {
             includeGroup("foundry.imguimc")
         }
     }
+
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "Modrinth"
+                url = "https://api.modrinth.com/maven"
+            }
+        }
+        // forRepositories(fg.repository) // Uncomment when using ForgeGradle
+        filter {
+            includeGroup "maven.modrinth"
+        }
+    }
+
     maven { url = 'https://maven.minecraftforge.net/'}
     maven { url = 'https://maven.blamejared.com' }
+
 }
 
 base {
@@ -135,6 +150,11 @@ dependencies {
     implementation 'com.github.glitchfiend:TerraBlender-neoforge:26.1.2-26.1.2.0.2'
     compileOnly "foundry.imguimc:imguimc-neoforge-26.1:2.0.1"
     localRuntime "foundry.imguimc:imguimc-neoforge-26.1:2.0.1"
+    // Sodium — kept for chunk-perf compatibility. Compile-only; DUSodiumCompat detects it via
+    // ModList at runtime and does not link Sodium types, so this is here for clarity/future use.
+    compileOnly "maven.modrinth:AANobbMI:ylHOo4fY"
+    // Iris is intentionally NOT a dependency. We do not defer to or route through Iris; the only
+    // Iris awareness is a runtime detect-and-step-aside (DUIrisCompat, via ModList + reflection).
 
     // Example mod dependency using a mod jar from ./libs with a flat dir repository
     // This maps to ./libs/coolmod-${mc_version}-${coolmod_version}.jar
