@@ -120,6 +120,25 @@ public final class DUTargetViewPanel {
             drawTarget("Ripple sim field (height; crests bright)", ImGuiMC.getTexture(ripple), w, w);
         }
 
+        // Sun's-eye shadow depth map (Stage A): grayscale, orthographic so depth is LINEAR (near-the-sun
+        // dark, far white). The terrain silhouette from the sun's angle should be plainly visible and
+        // should swing as the day cycle moves the sun. Square map, so previewed square. Only present when
+        // the shadow pass is enabled.
+        GpuTextureView shadowViz = DUPostChain.shadowVizView();
+        if (shadowViz != null) {
+            drawTarget("Shadow map (sun's-eye depth, Stage A)", ImGuiMC.getTexture(shadowViz), w, w);
+        }
+
+        // Stage D colored shadows: the translucent-occluder depth (grayscale) + the tint map (rgb=tint).
+        GpuTextureView coloredViz = DUPostChain.coloredShadowVizView();
+        if (coloredViz != null) {
+            drawTarget("Colored shadow depth (translucent, Stage D)", ImGuiMC.getTexture(coloredViz), w, w);
+        }
+        GpuTextureView coloredTint = DUPostChain.coloredTintView();
+        if (coloredTint != null) {
+            drawTarget("Colored shadow tint (rgb, Stage D)", ImGuiMC.getTexture(coloredTint), w, w);
+        }
+
         // Diagnostic: raw occlusion mask (sky = white, geometry = black) before the radial blur.
         GpuTextureView godrayMask = DUPostChain.godrayMaskView();
         if (godrayMask != null) {

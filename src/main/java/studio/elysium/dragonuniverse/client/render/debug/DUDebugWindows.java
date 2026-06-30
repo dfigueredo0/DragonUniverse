@@ -17,6 +17,8 @@ import studio.elysium.dragonuniverse.client.render.core.DULookData;
 import studio.elysium.dragonuniverse.client.render.water.DUWater;
 import studio.elysium.dragonuniverse.client.render.water.DUWaterSim;
 import studio.elysium.dragonuniverse.client.render.post.DUPostChain;
+import studio.elysium.dragonuniverse.client.render.post.DUShadowPass;
+import studio.elysium.dragonuniverse.client.render.core.DUShadowData;
 import studio.elysium.dragonuniverse.client.render.sky.DUSkyLayer;
 import studio.elysium.dragonuniverse.client.render.sky.DUSkyRenderer;
 import studio.elysium.dragonuniverse.client.render.sky.DUSkybox;
@@ -151,6 +153,32 @@ public final class DUDebugWindows {
     private static final ImBoolean ssrTemporal = new ImBoolean(DUSsrData.temporalEnabled);
     private static final float[] ssrMaxFeedback = { DUSsrData.maxFeedback };
     private static final float[] ssrMotionSens = { DUSsrData.motionSensitivity };
+
+    // Shadows — producer (Stage A: sun's-eye depth map) + receiver (Stage B: hard shadows)
+    private static final ImBoolean shadowEnabled = new ImBoolean(DUShadowPass.enabled);
+    private static final ImBoolean shadowMatchRender = new ImBoolean(DUShadowPass.matchRenderDistance);
+    private static final int[] shadowResolution = { DUShadowPass.resolution };
+    private static final float[] shadowCoverage = { DUShadowPass.coverageBlocks };
+    private static final float[] shadowDepthHeight = { DUShadowPass.depthHeight };
+    private static final ImBoolean shadowEyeTowardSun = new ImBoolean(DUShadowPass.eyeTowardSun);
+    private static final ImBoolean shadowOwnVisibleSet = new ImBoolean(DUShadowPass.ownVisibleSet);
+    private static final float[] shadowLeafUnits = { DUShadowPass.leafBiasUnits };
+    private static final float[] shadowLeafFactor = { DUShadowPass.leafBiasFactor };
+    private static final ImBoolean shadowApply = new ImBoolean(DUShadowData.enabled);
+    private static final float[] shadowStrength = { DUShadowData.strength };
+    private static final float[] shadowDepthBias = { DUShadowData.depthBias };
+    private static final float[] shadowNormalOffset = { DUShadowData.normalOffset };
+    private static final float[] shadowSlopeBias = { DUShadowData.slopeBias };
+    private static final float[] shadowTint = { DUShadowData.tint.x, DUShadowData.tint.y, DUShadowData.tint.z };
+    private static final float[] shadowPcfRadius = { DUShadowData.pcfRadius };
+    private static final int[] shadowPcfTaps = { DUShadowData.pcfTaps };
+    private static final float[] shadowPcfPenumbra = { DUShadowData.pcfPenumbra };
+    private static final ImBoolean shadowColored = new ImBoolean(DUShadowData.coloredEnabled);
+    private static final ImBoolean shadowColoredWater = new ImBoolean(DUShadowData.waterColoredShadows);
+    private static final float[] shadowColoredStrength = { DUShadowData.coloredStrength };
+    private static final float[] shadowColoredWaterOpacity = { DUShadowData.coloredWaterOpacity };
+    private static final int[] shadowColoredTaps = { DUShadowData.coloredFilterTaps };
+    private static final float[] shadowColoredRadius = { DUShadowData.coloredFilterRadius };
 
     private static final float[] testColor = { 0.2F, 0.6F, 1.0F };
     private static final float[] testWidth = { 0.25F };
@@ -602,6 +630,105 @@ public final class DUDebugWindows {
                 }
                 if (!DUWaterData.enabled || !DUWater.shaderReady()) {
                     ImGui.text("(needs water enabled + the terrain inject active to produce reflections)");
+                }
+            }
+
+            if (ImGui.collapsingHeader("Shadows (Stages A+B)")) {
+                ImGui.text("Producer (Stage A): re-renders Sodium terrain (opaque + foliage) from the sun's");
+                ImGui.text("POV into a depth map. Inspect the raw map in the Target Inspector.");
+                if (ImGui.checkbox("Enable shadow pass (producer)", shadowEnabled)) {
+                    DUShadowPass.enabled = shadowEnabled.get();
+                }
+                if (ImGui.sliderInt("Shadow map resolution", shadowResolution, 512, 8192)) {
+                    DUShadowPass.resolution = shadowResolution[0];
+                }
+                if (ImGui.checkbox("Match render distance (shadow distance = render distance, capped)", shadowMatchRender)) {
+                    DUShadowPass.matchRenderDistance = shadowMatchRender.get();
+                }
+                // When matching is on, coverage is driven each frame from render distance — reflect that in the
+                // slider (read-only feel) and let the slider drive only when matching is off.
+                shadowCoverage[0] = DUShadowPass.coverageBlocks;
+                if (ImGui.sliderFloat("Coverage half-extent (blocks)", shadowCoverage, 8.0f, 384.0f)
+                        && !DUShadowPass.matchRenderDistance) {
+                    DUShadowPass.coverageBlocks = shadowCoverage[0];
+                }
+                if (ImGui.sliderFloat("Shadow depth height (vertical slab)", shadowDepthHeight, 8.0f, 128.0f)) {
+                    DUShadowPass.depthHeight = shadowDepthHeight[0];
+                }
+                ImGui.text("(smaller = more depth contrast / short casters resolve; raise if shadows clip vertically)");
+                if (ImGui.checkbox("Eye toward sun (flip if map looks lit from the wrong side)", shadowEyeTowardSun)) {
+                    DUShadowPass.eyeTowardSun = shadowEyeTowardSun.get();
+                }
+                if (ImGui.checkbox("Own visible set (cast from all dirs, not just camera view)", shadowOwnVisibleSet)) {
+                    DUShadowPass.ownVisibleSet = shadowOwnVisibleSet.get();
+                }
+                ImGui.text("(off = old camera-frustum cull: occluders behind/beside you stop casting)");
+                ImGui.text("Leaf/cast bias (polygon offset): pushes occluders back; foliage self-shadows badly.");
+                if (ImGui.sliderFloat("Cast bias units", shadowLeafUnits, 0.0f, 8.0f)) {
+                    DUShadowPass.leafBiasUnits = shadowLeafUnits[0];
+                }
+                if (ImGui.sliderFloat("Cast bias slope factor", shadowLeafFactor, 0.0f, 8.0f)) {
+                    DUShadowPass.leafBiasFactor = shadowLeafFactor[0];
+                }
+
+                ImGui.separator();
+                ImGui.text("Receiver (Stage B): hard shadows multiplied onto sun-facing terrain. Tune bias to");
+                ImGui.text("kill acne (sparkle) without peter-panning (shadows detaching from contact).");
+                if (ImGui.checkbox("Apply hard shadows (receiver)", shadowApply)) {
+                    DUShadowData.enabled = shadowApply.get();
+                }
+                if (ImGui.sliderFloat("Shadow strength", shadowStrength, 0.0f, 1.0f)) {
+                    DUShadowData.strength = shadowStrength[0];
+                }
+                if (ImGui.sliderFloat("Normal offset — base (texels)", shadowNormalOffset, 0.0f, 8.0f)) {
+                    DUShadowData.normalOffset = shadowNormalOffset[0];
+                }
+                if (ImGui.sliderFloat("Normal offset — slope (texels/graze)", shadowSlopeBias, 0.0f, 8.0f)) {
+                    DUShadowData.slopeBias = shadowSlopeBias[0];
+                }
+                if (ImGui.sliderFloat("Depth nudge (normalized; keep ~0)", shadowDepthBias, 0.0f, 0.002f, "%.5f")) {
+                    DUShadowData.depthBias = shadowDepthBias[0];
+                }
+                if (ImGui.colorEdit3("Shadow tint", shadowTint)) {
+                    DUShadowData.tint.set(shadowTint[0], shadowTint[1], shadowTint[2]);
+                }
+                ImGui.separator();
+                ImGui.text("PCF softening (Stage C): Vogel-spiral filter, per-pixel IGN-rotated (TAA-stable).");
+                if (ImGui.sliderFloat("PCF radius (texels)", shadowPcfRadius, 0.0f, 16.0f)) {
+                    DUShadowData.pcfRadius = shadowPcfRadius[0];
+                }
+                if (ImGui.sliderInt("PCF taps", shadowPcfTaps, 1, 64)) {
+                    DUShadowData.pcfTaps = shadowPcfTaps[0];
+                }
+                if (ImGui.sliderFloat("Penumbra (0 = constant; >0 = softer farther from contact)", shadowPcfPenumbra, 0.0f, 512.0f)) {
+                    DUShadowData.pcfPenumbra = shadowPcfPenumbra[0];
+                }
+                ImGui.separator();
+                ImGui.text("Colored shadows (Stage D): translucent occluders (stained glass, water) tint the");
+                ImGui.text("sun instead of darkening. Adds a 3rd sun's-eye re-invoke (translucent) when on.");
+                if (ImGui.checkbox("Enable colored shadows", shadowColored)) {
+                    DUShadowData.coloredEnabled = shadowColored.get();
+                }
+                if (ImGui.checkbox("Water casts colored shadows", shadowColoredWater)) {
+                    DUShadowData.waterColoredShadows = shadowColoredWater.get();
+                }
+                if (ImGui.sliderFloat("Colored strength", shadowColoredStrength, 0.0f, 1.0f)) {
+                    DUShadowData.coloredStrength = shadowColoredStrength[0];
+                }
+                if (ImGui.sliderFloat("Water tint opacity", shadowColoredWaterOpacity, 0.0f, 1.0f)) {
+                    DUShadowData.coloredWaterOpacity = shadowColoredWaterOpacity[0];
+                }
+                if (ImGui.sliderInt("Colored PCF taps", shadowColoredTaps, 1, 32)) {
+                    DUShadowData.coloredFilterTaps = shadowColoredTaps[0];
+                }
+                if (ImGui.sliderFloat("Colored PCF radius (texels)", shadowColoredRadius, 0.0f, 16.0f)) {
+                    DUShadowData.coloredFilterRadius = shadowColoredRadius[0];
+                }
+                if (!DUShadowPass.isEnabled() && shadowEnabled.get()) {
+                    ImGui.text("(shadow pass disabled itself — see the log; needs Sodium + the render hook)");
+                }
+                if (DUShadowData.enabled && !DUShadowPass.isEnabled()) {
+                    ImGui.text("(receiver needs the producer enabled to have a map to sample)");
                 }
             }
 

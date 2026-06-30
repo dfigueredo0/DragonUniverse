@@ -56,6 +56,11 @@ public class SodiumShaderLoaderMixin {
             uniform vec4 du_WaterStillUV;
             uniform vec4 du_WaterFlowUV;
             uniform float du_WaterEnabled;
+            // Stage D colored shadows: during the sun's-eye TRANSLUCENT re-invoke (du_ShadowPass>0.5) the
+            // fragment emits a flat occluder TINT into the tint map instead of the full water surface shading.
+            uniform float du_ShadowPass;
+            uniform float du_WaterColoredShadows;
+            uniform float du_ColoredWaterOpacity;
             uniform float du_AlphaK;
             uniform float du_AlphaMin;
             uniform float du_AlphaMax;
@@ -139,7 +144,18 @@ public class SodiumShaderLoaderMixin {
     @Unique
     private static final String WATER_BODY = """
 
-                if (du_WaterEnabled > 0.5 && (du_inUV(v_TexCoord, du_WaterStillUV) || du_inUV(v_TexCoord, du_WaterFlowUV))) {
+                if (du_ShadowPass > 0.5) {
+                    // Stage D: sun's-eye colored-shadow pass. Emit a flat occluder tint (rgb) + opacity (a)
+                    // into the tint map; bypass ALL water surface shading (no SSR/refraction/sky/waves/fog),
+                    // so normal frames (du_ShadowPass==0) are untouched. Glass/other translucent: dyed albedo
+                    // (Sodium's pre-fog `color`). Water: the material's shallow/deep tint, or excluded.
+                    if (du_inUV(v_TexCoord, du_WaterStillUV) || du_inUV(v_TexCoord, du_WaterFlowUV)) {
+                        if (du_WaterColoredShadows < 0.5) discard;   // water off → write no occlusion at all
+                        fragColor = vec4(mix(du_ShallowColor, du_DeepColor, 0.5), du_ColoredWaterOpacity);
+                    } else {
+                        fragColor = vec4(color.rgb, color.a);
+                    }
+                } else if (du_WaterEnabled > 0.5 && (du_inUV(v_TexCoord, du_WaterStillUV) || du_inUV(v_TexCoord, du_WaterFlowUV))) {
                     // Shared, eye-independent surface prep (value-identical to the original above-water path).
                     vec2 du_suv = gl_FragCoord.xy / vec2(textureSize(du_OpaqueDepth, 0));
                     vec3 du_Pw = du_viewPos(du_suv, gl_FragCoord.z);

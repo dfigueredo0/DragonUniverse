@@ -151,6 +151,22 @@ public final class DUPostPipelines {
             .withSampler("InSampler")
             .build();
 
+    /** Shadow-map debug viz (Stage A): raw sun's-eye depth as grayscale for the Target Inspector. */
+    public static final RenderPipeline SHADOW_VIZ = post("du_post_shadow_viz", "du_shadow_viz")
+            .withSampler("DepthSampler")
+            .build();
+
+    /** Shadow apply (Stage B + Stage D colored): sample the opaque sun's-eye map per fragment, multiply-darken
+     *  shadowed terrain, and tint by the translucent occluder map where one occludes a sun-lit fragment. */
+    public static final RenderPipeline SHADOW_APPLY = postMultiply("du_post_shadow_apply", "du_shadow_apply")
+            .withSampler("DepthSampler")
+            .withSampler("NormalSampler")
+            .withSampler("ShadowSampler")
+            .withSampler("ColoredDepthSampler")
+            .withSampler("ColoredTintSampler")
+            .withUniform("DUShadow", UniformType.UNIFORM_BUFFER)
+            .build();
+
     /** final color grade + directional sky-tint (overwrites the composited frame). No blend. */
     public static final RenderPipeline COLOR_GRADE = post("du_post_color_grade", "du_color_grade")
             .withSampler("InSampler")
@@ -242,6 +258,8 @@ public final class DUPostPipelines {
         event.registerPipeline(HIZ_INIT);
         event.registerPipeline(HIZ_DOWN);
         event.registerPipeline(HIZ_VIZ);
+        event.registerPipeline(SHADOW_VIZ);
+        event.registerPipeline(SHADOW_APPLY);
         event.registerPipeline(COLOR_GRADE);
         event.registerPipeline(WATER_SIM);
         event.registerPipeline(SSR);

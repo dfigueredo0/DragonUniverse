@@ -12,6 +12,7 @@ import studio.elysium.dragonuniverse.DragonUniverse;
 import studio.elysium.dragonuniverse.client.render.core.DUSsrData;
 import studio.elysium.dragonuniverse.client.render.core.DUWaterData;
 import studio.elysium.dragonuniverse.client.render.post.DUNormalBuffer;
+import studio.elysium.dragonuniverse.client.render.post.DUShadowPass;
 import studio.elysium.dragonuniverse.client.render.post.DUWaterGbuffer;
 import studio.elysium.dragonuniverse.client.render.water.DUWater;
 
@@ -54,10 +55,24 @@ public class SodiumShaderChunkRendererMixin {
     @Unique
     private static boolean dragonuniverse$reflectFailed = false;
 
+    /**
+     * Redirect terrain depth into the DU shadow map during the sun's-eye re-invoke. Runs at the same
+     * {@code begin} TAIL the normals MRT uses (FBO bound, state applied), but binds our own depth-only
+     * FBO instead — see {@link DUShadowPass}. Only fires while the re-invoke is active.
+     */
+    @Inject(method = "begin", at = @At("TAIL"), require = 0)
+    private void dragonuniverse$shadowBegin(@Coerce Object pass, @Coerce Object fog, @Coerce Object sampler,
+                                            CallbackInfo ci) {
+        if (DUShadowPass.isActive()) {
+            DUShadowPass.onSodiumBegin();
+        }
+    }
+
     @Inject(method = "begin", at = @At("TAIL"), require = 0)
     private void dragonuniverse$attachNormals(@Coerce Object pass, @Coerce Object fog, @Coerce Object sampler,
                                               CallbackInfo ci) {
-        if (dragonuniverse$isTranslucent(pass) || !DUNormalBuffer.shouldCapture()) {
+        // During the sun's-eye re-invoke our depth-only FBO is bound; never attach the normals MRT to it.
+        if (DUShadowPass.isActive() || dragonuniverse$isTranslucent(pass) || !DUNormalBuffer.shouldCapture()) {
             return;
         }
         try {
@@ -82,7 +97,9 @@ public class SodiumShaderChunkRendererMixin {
     @Inject(method = "begin", at = @At("HEAD"), require = 0)
     private void dragonuniverse$captureWaterDepth(@Coerce Object pass, @Coerce Object fog, @Coerce Object sampler,
                                                   CallbackInfo ci) {
-        if (!dragonuniverse$isTranslucent(pass) || !DUWaterData.enabled || !DUWater.shaderReady()) {
+        // Skip during the sun's-eye colored re-invoke: the tint FBO is bound, not the main target.
+        if (DUShadowPass.isActive() || !dragonuniverse$isTranslucent(pass) || !DUWaterData.enabled
+                || !DUWater.shaderReady()) {
             return;
         }
         try {
@@ -112,6 +129,25 @@ public class SodiumShaderChunkRendererMixin {
     }
 
     /**
+     * Stage D: bind the colored-shadow flags onto the terrain program at the translucent {@code begin} TAIL.
+     * Runs on every translucent pass (not just while the shadow re-invoke is active) so {@code du_ShadowPass}
+     * is reliably 0 for the normal water draw and 1 only inside the nested tint re-invoke — see
+     * {@link DUShadowPass#bindColoredShadowUniforms}.
+     */
+    @Inject(method = "begin", at = @At("TAIL"), require = 0)
+    private void dragonuniverse$bindColoredShadow(@Coerce Object pass, @Coerce Object fog, @Coerce Object sampler,
+                                                  CallbackInfo ci) {
+        if (!dragonuniverse$isTranslucent(pass)) {
+            return;
+        }
+        try {
+            DUShadowPass.bindColoredShadowUniforms();
+        } catch (Throwable ignored) {
+            // best-effort; a missing uniform just leaves the shadow tint branch inert
+        }
+    }
+
+    /**
      * Attach the water surface G-buffer at {@code COLOR_ATTACHMENT2} for the <b>translucent</b>
      * terrain pass, so the injected water fragment can stash its surface normal/fresnel/depth for the
      * composite-stage SSR raymarch. Gated on SSR being enabled so the MRT costs nothing when it's off.
@@ -119,7 +155,11 @@ public class SodiumShaderChunkRendererMixin {
     @Inject(method = "begin", at = @At("TAIL"), require = 0)
     private void dragonuniverse$attachWaterGbuf(@Coerce Object pass, @Coerce Object fog, @Coerce Object sampler,
                                                 CallbackInfo ci) {
-        if (!dragonuniverse$isTranslucent(pass) || !DUSsrData.enabled || !DUWater.shaderReady()) {
+        // CRITICAL: never attach the screen-size water G-buffer during the colored shadow re-invoke — the
+        // bound FBO is the shadow-resolution tint target, so a mismatched-size COLOR_ATTACHMENT2 would make
+        // it incomplete and silently drop every translucent tint write (empty colored-shadow map).
+        if (DUShadowPass.isActive() || !dragonuniverse$isTranslucent(pass) || !DUSsrData.enabled
+                || !DUWater.shaderReady()) {
             return;
         }
         try {
@@ -133,6 +173,14 @@ public class SodiumShaderChunkRendererMixin {
             dragonuniverse$waterGbufAttached = false;
             DragonUniverse.LOGGER.warn("[Dragon Universe] Water SSR G-buffer attach failed; SSR disabled "
                     + "this frame (terrain + water unaffected).", t);
+        }
+    }
+
+    /** Restore the main FBO after the sun's-eye depth draw (end HEAD = our FBO still bound). */
+    @Inject(method = "end", at = @At("HEAD"), require = 0)
+    private void dragonuniverse$shadowEnd(@Coerce Object pass, CallbackInfo ci) {
+        if (DUShadowPass.isActive()) {
+            DUShadowPass.onSodiumEnd();
         }
     }
 

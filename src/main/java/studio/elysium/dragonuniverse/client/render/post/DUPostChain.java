@@ -27,6 +27,7 @@ import studio.elysium.dragonuniverse.client.render.core.DUGodrayData;
 import studio.elysium.dragonuniverse.client.render.core.DUGradeData;
 import studio.elysium.dragonuniverse.client.render.core.DULookData;
 import studio.elysium.dragonuniverse.client.render.core.DUSsaoData;
+import studio.elysium.dragonuniverse.client.render.core.DUShadowData;
 import studio.elysium.dragonuniverse.client.render.core.DUSsrData;
 import studio.elysium.dragonuniverse.client.render.core.DUViewData;
 import studio.elysium.dragonuniverse.client.render.core.DUWaterData;
@@ -100,6 +101,16 @@ public final class DUPostChain {
     private static final PostTarget hiZViz =
             new PostTarget("DU hiz viz", GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_TEXTURE_BINDING);
 
+    // Shadow-map debug viz (Stage A): a small grayscale unpack of the sun's-eye depth map for the
+    // Target Inspector (the raw depth texture is near-white/unreadable). The map itself lives in
+    // DUShadowPass (its own depth-only FBO, built during the terrain pass).
+    private static final PostTarget shadowViz =
+            new PostTarget("DU shadow viz", GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_TEXTURE_BINDING);
+    // Stage D: a grayscale unpack of the translucent (colored) shadow depth for the inspector. The tint
+    // color map itself is RGBA8 and shown directly (DUShadowPass.coloredTintView()).
+    private static final PostTarget coloredShadowViz =
+            new PostTarget("DU colored shadow viz", GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_TEXTURE_BINDING);
+
     // God rays: half-res RGBA8 occlusion mask + radial-blur result. Half-res because the radial
     // blur is the expensive part and rays are low-frequency, so it upsamples cleanly.
     private static final PostTarget godrayMask =
@@ -132,6 +143,7 @@ public final class DUPostChain {
     // (cheaper + safer than clearing it, which would need a render-attachment usage the buffer doesn't have).
     private static boolean ssrHistoryValid = false;
     private static boolean warnedSsr = false;
+    private static boolean warnedShadow = false;
     // Previous-frame camera pose, for the temporal accumulation's stillness gate (no motion-vector buffer
     // exists in the stack, so accumulation backs off by how much the camera moved/rotated this frame).
     private static final Matrix3f ssrPrevRot = new Matrix3f();
@@ -205,6 +217,21 @@ public final class DUPostChain {
         return hiZViz.view;
     }
 
+    /** The sun's-eye shadow-map debug viz (Stage A; grayscale depth), for the Target Inspector. Null until run. */
+    public static GpuTextureView shadowVizView() {
+        return shadowViz.view;
+    }
+
+    /** The translucent (colored) shadow depth viz (Stage D; grayscale), for the inspector. Null until run. */
+    public static GpuTextureView coloredShadowVizView() {
+        return coloredShadowViz.view;
+    }
+
+    /** The translucent-occluder tint map (Stage D; rgb=tint, a=opacity), for the inspector. Null until run. */
+    public static GpuTextureView coloredTintView() {
+        return DUShadowPass.coloredTintView();
+    }
+
     /** The blurred god-ray intensity (half-res, Task 4), for the Target Inspector. Null until run once. */
     public static GpuTextureView godrayView() {
         return godrayBlur.view;
@@ -237,6 +264,10 @@ public final class DUPostChain {
             DUHiZBuffer.close();
             godrayMask.close();
             godrayBlur.close();
+            shadowViz.close();
+            coloredShadowViz.close();
+            DUShadowPass.close();
+            DUShadowData.close();
             gradeSrc.close();
             underwaterSrc.close();
             ssrSrc.close();
@@ -301,6 +332,9 @@ public final class DUPostChain {
         DUNormalBuffer.beginFrame();
         // Arm the SSR water-gbuf clear for the next frame's first writer (same rationale as the normal buffer).
         DUWaterGbuffer.beginFrame();
+        // Reset the shadow pass's once-per-frame fire guard (look-stack independent: shadows can run with
+        // the look stack off, they just can't be inspected without it).
+        DUShadowPass.beginFrame();
         // Underwater scene fog runs independently of the look-stack toggle (water can be used standalone):
         // tint the submerged scene before the look-stack passes (so glow/VFX still read through the water).
         renderUnderwaterFog(event);
@@ -414,6 +448,21 @@ public final class DUPostChain {
             // World-space normals come from the Sodium geometry MRT (DUNormalBuffer), not reconstruction.
             GpuSampler depthClamp = RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST);
 
+            // Shadow-map debug viz (Stage A): unpack the sun's-eye depth map to grayscale for the
+            // inspector. The map is built during the terrain pass (DUShadowPass); this only displays it.
+            // Independent of the look-stack passes; produces nothing when shadows are off.
+            if (DUShadowPass.isEnabled() && DUShadowPass.depthView() != null) {
+                shadowViz.ensure(1024, 1024);   // 1024 so small casters aren't lost to viz downsample aliasing
+                runPass(enc, "DU shadow viz", shadowViz.view, DUPostPipelines.SHADOW_VIZ,
+                        pass -> pass.bindTexture("DepthSampler", DUShadowPass.depthView(), depthClamp));
+                // Stage D: same unpack for the translucent (colored) shadow depth, when built.
+                if (DUShadowPass.hasColoredMap() && DUShadowPass.coloredDepthView() != null) {
+                    coloredShadowViz.ensure(1024, 1024);
+                    runPass(enc, "DU colored shadow viz", coloredShadowViz.view, DUPostPipelines.SHADOW_VIZ,
+                            pass -> pass.bindTexture("DepthSampler", DUShadowPass.coloredDepthView(), depthClamp));
+                }
+            }
+
             // -1) Hi-Z min-depth pyramid (optional): linearize the scene depth into level 0, then min-
             //     downsample up the chain, so SSAO can read a footprint-matched mip at distance (contact
             //     shadows persist instead of fading). Built before SSAO; off by default. A debug viz of a
@@ -468,6 +517,42 @@ public final class DUPostChain {
                 // multiply the blurred AO into the main color (uncovered pixels carry AO=1 -> no-op).
                 runPass(enc, "DU ssao composite", mainColorView, DUPostPipelines.SSAO_COMPOSITE,
                         pass -> pass.bindTexture("InSampler", ssaoBlur.view, clamp));
+            }
+
+            //    Stage-B hard shadows: sample the sun's-eye map (built during the terrain pass) per
+            //    fragment and MULTIPLY-darken shadowed, sun-facing terrain. Placed with SSAO (before the
+            //    additive passes) so added light isn't darkened. Uses the EXACT light matrix the map was
+            //    drawn with (from DUShadowPass) so producer/receiver can't drift. Fail-soft in its own
+            //    scope — a shadow failure disables shadows only, never the rest of the look stack.
+            if (DUShadowData.enabled && DUShadowPass.hasMap() && DUNormalBuffer.view() != null) {
+                try {
+                    float shadowTexelWorld = 2.0F * DUShadowPass.coverageBlocks
+                            / Math.max(1, DUShadowPass.resolution);
+                    // Stage D gate: sample the tint map only when it's actually been built this run, so the
+                    // receiver never reads a garbage/unbuilt colored map. When off, bind the opaque depth as a
+                    // harmless placeholder for the two colored samplers (uColored.w == 0 -> never read).
+                    boolean coloredOn = DUShadowData.coloredEnabled && DUShadowPass.hasColoredMap();
+                    DUShadowData.coloredRuntime = coloredOn;
+                    GpuTextureView coloredDepth = coloredOn ? DUShadowPass.coloredDepthView() : DUShadowPass.depthView();
+                    GpuTextureView coloredTint = coloredOn ? DUShadowPass.coloredTintView() : DUShadowPass.depthView();
+                    DUShadowData.upload(DUShadowPass.lastLightViewProj(), DUShadowPass.lastSunDir(),
+                            shadowTexelWorld);
+                    runPass(enc, "DU shadow apply", mainColorView, DUPostPipelines.SHADOW_APPLY, pass -> {
+                        pass.setUniform("DUShadow", DUShadowData.slice());
+                        pass.bindTexture("DepthSampler", mainDepthView, depthClamp);
+                        pass.bindTexture("NormalSampler", DUNormalBuffer.view(), depthClamp);
+                        pass.bindTexture("ShadowSampler", DUShadowPass.depthView(), depthClamp);
+                        pass.bindTexture("ColoredDepthSampler", coloredDepth, depthClamp);
+                        pass.bindTexture("ColoredTintSampler", coloredTint, clamp);
+                    });
+                } catch (Exception e) {
+                    DUShadowData.enabled = false;
+                    if (!warnedShadow) {
+                        warnedShadow = true;
+                        DragonUniverse.LOGGER.warn("[Dragon Universe] Shadow apply pass failed; disabling "
+                                + "shadows only (the rest of the look stack is unaffected).", e);
+                    }
+                }
             }
 
             //      SSR: reflect on-screen geometry off the water surface. Runs AFTER SSAO
